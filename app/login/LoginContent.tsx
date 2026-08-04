@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { createClient } from '@/lib/auth/supabase';
 
 
 export default function LoginContent() {
@@ -19,13 +18,18 @@ export default function LoginContent() {
     setLoading(true);
 
     const redirectTo = searchParams.get('redirect') ?? '/dashboard';
-    const supabase = createClient();
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const body = await response.json();
 
-      if (error) {
-        throw error;
+      if (!response.ok) {
+        const message = typeof body.error === 'string' ? body.error : 'Please check your email and password';
+        throw new Error(message);
       }
 
       router.replace(redirectTo);

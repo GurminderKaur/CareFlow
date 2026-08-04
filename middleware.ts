@@ -3,7 +3,7 @@ import { createMiddlewareClient } from '@/lib/auth/supabase';
 import { hasRequiredRole, getRoleFromMetadata } from '@/lib/auth/session';
 
 const publicPaths = ['/', '/login'];
-const publicApiPaths = ['/api/health', '/api/auth/login', '/api/auth/logout'];
+const publicApiPaths = ['/api/health', '/api/auth/login', '/api/auth/logout', '/api/auth/signup'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
