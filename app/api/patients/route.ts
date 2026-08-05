@@ -5,11 +5,6 @@ import { createPatient, searchPatientsByName, validateNewPatientInput } from '@/
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get('query')?.trim() ?? '';
-
-  if (!query) {
-    return NextResponse.json({ patients: [] });
-  }
-
   const patients = await searchPatientsByName(query);
 
   return NextResponse.json({ patients });

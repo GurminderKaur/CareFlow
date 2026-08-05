@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-
 export default function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -41,35 +40,41 @@ export default function LoginContent() {
   }
 
   return (
-    <main style={{ maxWidth: 420, margin: '4rem auto', padding: '2rem', background: '#fff', borderRadius: 12 }}>
-      <h1>CareFlow staff sign in</h1>
-      <p style={{ color: '#475569' }}>Use your Supabase-authenticated staff account to continue.</p>
-      <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '1rem', marginTop: '1.5rem' }}>
-        <label>
-          <div>Email</div>
-          <input
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            type="email"
-            required
-            style={{ width: '100%', padding: '0.75rem' }}
-          />
-        </label>
-        <label>
-          <div>Password</div>
-          <input
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            type="password"
-            required
-            style={{ width: '100%', padding: '0.75rem' }}
-          />
-        </label>
-        {error ? <div style={{ color: '#b91c1c' }}>{error}</div> : null}
-        <button type="submit" disabled={loading} style={{ padding: '0.8rem 1rem' }}>
-          {loading ? 'Signing in…' : 'Sign in'}
-        </button>
-      </form>
+    <main className="flex min-h-screen items-center justify-center px-4">
+      <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
+        <h1 className="text-xl font-semibold text-slate-900">CareFlow staff sign in</h1>
+        <p className="mt-1 text-sm text-slate-500">Use your Supabase-authenticated staff account to continue.</p>
+        <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
+          <label className="flex flex-col gap-1">
+            <span className="text-sm font-medium text-slate-700">Email</span>
+            <input
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              type="email"
+              required
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-sm font-medium text-slate-700">Password</span>
+            <input
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              type="password"
+              required
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+            />
+          </label>
+          {error ? <div className="text-sm text-red-600">{error}</div> : null}
+          <button
+            type="submit"
+            disabled={loading}
+            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
+          >
+            {loading ? 'Signing in…' : 'Sign in'}
+          </button>
+        </form>
+      </div>
     </main>
   );
 }
