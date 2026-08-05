@@ -23,7 +23,13 @@
 - `lib/db/` holds the typed repository layer (`patients.ts`, `visits.ts`, `audit-events.ts`). Each function uses the same cookie-bound `createServerComponentClient()` from auth, so all reads/writes run as the logged-in user under RLS — no service-role key is used or needed yet. Reads return `null`/`[]` on failure; writes throw.
 - Each repository file also exports a zod input validator (`validateNewPatientInput`, etc.), same pattern as `lib/auth/session.ts`'s `validateLoginInput`.
 
+## Patient workflow
+- `app/api/patients/route.ts` calls `lib/db/patients.ts` directly — no separate service layer. A service module is only worth adding once patient-related logic involves more than validation plus a single DB call; nothing in Milestone 3 does.
+- `GET /api/patients?query=` requires a non-empty query and returns an empty list otherwise, rather than listing every patient. This is a deliberate MVP choice, not a missing feature.
+- `features/patients/PatientSearch.tsx` holds search results, the selected patient, and the create-patient form as local component state. The detail view is an inline panel, not a routed page, matching the single-dashboard-shell approach. Selected-patient state is not yet lifted to a parent — Milestone 4 will need to do that when visit capture requires knowing which patient is active.
+
 ## Current implementation posture
 - Milestone 1 (authentication, role-aware access, protected shell) is complete and deployed.
 - Milestone 2 (database schema and typed persistence layer) is complete: schema applied, types aligned, repository layer in place, covered by tests.
-- Milestone 3 should wire the patient workflow (search/create UI) to the `lib/db/patients.ts` repository functions.
+- Milestone 3 (patient search and create) is complete: API route, UI, and a component test are in place.
+- Milestone 4 should wire visit capture to the selected patient and replace the AI summarization stub.
