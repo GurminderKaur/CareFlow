@@ -7,3 +7,11 @@ export interface AuditEvent {
   createdAt: string;
   details?: Record<string, unknown>;
 }
+
+export interface NewAuditEventInput {
+  entityType: AuditEvent['entityType'];
+  entityId: string;
+  action: string;
+  performedBy: string;
+  details?: Record<string, unknown>;
+}
