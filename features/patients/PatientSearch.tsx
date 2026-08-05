@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import type { Patient } from '@/types/patient';
 
 export function PatientSearch() {
@@ -8,6 +8,7 @@ export function PatientSearch() {
   const [results, setResults] = useState<Patient[]>([]);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
+  const [hasSearched, setHasSearched] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
 
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -17,38 +18,50 @@ export function PatientSearch() {
   const [email, setEmail] = useState('');
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
+  const [createSuccess, setCreateSuccess] = useState('');
 
-  async function handleSearch(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function runSearch(term: string) {
     setSearchError('');
-    setSelectedPatient(null);
-
-    if (!query.trim()) {
-      setResults([]);
-      return;
-    }
-
     setSearching(true);
 
     try {
-      const response = await fetch(`/api/patients?query=${encodeURIComponent(query.trim())}`);
+      const response = await fetch(`/api/patients?query=${encodeURIComponent(term)}`);
       const body = await response.json();
 
       if (!response.ok) {
-        throw new Error(typeof body.error === 'string' ? body.error : 'Unable to search patients');
+        throw new Error(typeof body.error === 'string' ? body.error : 'Unable to load patients');
       }
 
       setResults(body.patients);
     } catch (err) {
-      setSearchError(err instanceof Error ? err.message : 'Unable to search patients');
+      setSearchError(err instanceof Error ? err.message : 'Unable to load patients');
     } finally {
       setSearching(false);
+      setHasSearched(true);
     }
+  }
+
+  useEffect(() => {
+    runSearch('');
+  }, []);
+
+  async function handleSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSelectedPatient(null);
+    await runSearch(query.trim());
+    setQuery('');
+  }
+
+  function openCreateForm() {
+    setCreateError('');
+    setCreateSuccess('');
+    setShowCreateForm((current) => !current);
   }
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setCreateError('');
+    setCreateSuccess('');
     setCreating(true);
 
     try {
@@ -72,6 +85,7 @@ export function PatientSearch() {
       setSelectedPatient(body.patient);
       setResults((current) => [body.patient, ...current]);
       setShowCreateForm(false);
+      setCreateSuccess(`${body.patient.fullName} was created successfully.`);
       setFullName('');
       setDateOfBirth('');
       setPhone('');
@@ -84,32 +98,44 @@ export function PatientSearch() {
   }
 
   return (
-    <section style={{ marginTop: '1.5rem' }}>
-      <h2>Patient lookup</h2>
-      <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.5rem' }}>
+    <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <h2 className="text-lg font-semibold text-slate-900">Patients</h2>
+
+      <form onSubmit={handleSearch} className="mt-4 flex gap-2">
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search patient by name"
-          style={{ padding: '0.75rem', width: '100%', maxWidth: 360 }}
+          className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
         />
-        <button type="submit" disabled={searching} style={{ padding: '0.75rem 1rem' }}>
+        <button
+          type="submit"
+          disabled={searching}
+          className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
+        >
           {searching ? 'Searching…' : 'Search'}
         </button>
       </form>
 
-      {searchError ? <div style={{ color: '#b91c1c', marginTop: '0.5rem' }}>{searchError}</div> : null}
+      {searchError ? <div className="mt-3 text-sm text-red-600">{searchError}</div> : null}
+
+      {!searchError && searching ? <div className="mt-4 text-sm text-slate-500">Loading patients…</div> : null}
+
+      {!searchError && !searching && hasSearched && results.length === 0 ? (
+        <div className="mt-4 text-sm text-slate-500">No patients found.</div>
+      ) : null}
 
       {results.length > 0 ? (
-        <ul style={{ listStyle: 'none', padding: 0, marginTop: '1rem' }}>
+        <ul className="mt-4 divide-y divide-slate-100">
           {results.map((patient) => (
-            <li key={patient.id} style={{ marginBottom: '0.5rem' }}>
+            <li key={patient.id}>
               <button
                 type="button"
                 onClick={() => setSelectedPatient(patient)}
-                style={{ padding: '0.5rem 0.75rem', width: '100%', textAlign: 'left' }}
+                className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm hover:bg-slate-50"
               >
-                {patient.fullName} — {patient.dateOfBirth}
+                <span className="font-medium text-slate-900">{patient.fullName}</span>
+                <span className="text-slate-500">{patient.dateOfBirth}</span>
               </button>
             </li>
           ))}
@@ -117,62 +143,68 @@ export function PatientSearch() {
       ) : null}
 
       {selectedPatient ? (
-        <div style={{ marginTop: '1rem', padding: '1rem', border: '1px solid #cbd5e1', borderRadius: 8 }}>
-          <h3 style={{ marginTop: 0 }}>{selectedPatient.fullName}</h3>
-          <p>Date of birth: {selectedPatient.dateOfBirth}</p>
-          {selectedPatient.phone ? <p>Phone: {selectedPatient.phone}</p> : null}
-          {selectedPatient.email ? <p>Email: {selectedPatient.email}</p> : null}
+        <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <h3 className="font-semibold text-slate-900">{selectedPatient.fullName}</h3>
+          <p className="mt-1 text-sm text-slate-600">Date of birth: {selectedPatient.dateOfBirth}</p>
+          {selectedPatient.phone ? <p className="text-sm text-slate-600">Phone: {selectedPatient.phone}</p> : null}
+          {selectedPatient.email ? <p className="text-sm text-slate-600">Email: {selectedPatient.email}</p> : null}
         </div>
       ) : null}
 
       <button
         type="button"
-        onClick={() => setShowCreateForm((current) => !current)}
-        style={{ marginTop: '1rem', padding: '0.6rem 0.9rem' }}
+        onClick={openCreateForm}
+        className="mt-4 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
       >
         {showCreateForm ? 'Cancel' : 'Add new patient'}
       </button>
 
+      {createSuccess ? <div className="mt-3 text-sm text-emerald-600">{createSuccess}</div> : null}
+
       {showCreateForm ? (
-        <form onSubmit={handleCreate} style={{ display: 'grid', gap: '0.75rem', marginTop: '1rem', maxWidth: 360 }}>
-          <label>
-            <div>Full name</div>
+        <form onSubmit={handleCreate} className="mt-4 flex max-w-sm flex-col gap-3">
+          <label className="flex flex-col gap-1">
+            <span className="text-sm font-medium text-slate-700">Full name</span>
             <input
               value={fullName}
               onChange={(event) => setFullName(event.target.value)}
               required
-              style={{ width: '100%', padding: '0.75rem' }}
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
             />
           </label>
-          <label>
-            <div>Date of birth</div>
+          <label className="flex flex-col gap-1">
+            <span className="text-sm font-medium text-slate-700">Date of birth</span>
             <input
               type="date"
               value={dateOfBirth}
               onChange={(event) => setDateOfBirth(event.target.value)}
               required
-              style={{ width: '100%', padding: '0.75rem' }}
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
             />
           </label>
-          <label>
-            <div>Phone (optional)</div>
+          <label className="flex flex-col gap-1">
+            <span className="text-sm font-medium text-slate-700">Phone (optional)</span>
             <input
               value={phone}
               onChange={(event) => setPhone(event.target.value)}
-              style={{ width: '100%', padding: '0.75rem' }}
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
             />
           </label>
-          <label>
-            <div>Email (optional)</div>
+          <label className="flex flex-col gap-1">
+            <span className="text-sm font-medium text-slate-700">Email (optional)</span>
             <input
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              style={{ width: '100%', padding: '0.75rem' }}
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
             />
           </label>
-          {createError ? <div style={{ color: '#b91c1c' }}>{createError}</div> : null}
-          <button type="submit" disabled={creating} style={{ padding: '0.75rem 1rem' }}>
+          {createError ? <div className="text-sm text-red-600">{createError}</div> : null}
+          <button
+            type="submit"
+            disabled={creating}
+            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
+          >
             {creating ? 'Creating…' : 'Create patient'}
           </button>
         </form>

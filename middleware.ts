@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createMiddlewareClient } from '@/lib/auth/supabase';
 import { hasRequiredRole, getRoleFromMetadata } from '@/lib/auth/session';
 
-const publicPaths = ['/', '/login'];
+const publicPaths = ['/login'];
 const publicApiPaths = ['/api/health', '/api/auth/login', '/api/auth/logout', '/api/auth/signup'];
 
 export async function middleware(request: NextRequest) {
@@ -15,6 +15,11 @@ export async function middleware(request: NextRequest) {
 
   if (pathname.startsWith('/_next') || pathname.includes('/favicon')) {
     return response;
+  }
+
+  if (pathname === '/') {
+    const destination = userSession && hasRequiredRole(userSession, 'staff') ? '/dashboard' : '/login';
+    return NextResponse.redirect(new URL(destination, request.url));
   }
 
   if (pathname.startsWith('/api/')) {

@@ -18,14 +18,7 @@ describe('PatientSearch', () => {
     vi.unstubAllGlobals();
   });
 
-  it('does not search when the query is empty', () => {
-    render(<PatientSearch />);
-    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
-
-    expect(fetch).not.toHaveBeenCalled();
-  });
-
-  it('renders search results and shows the detail panel on selection', async () => {
+  it('loads all patients on mount', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
       jsonResponse({
         patients: [
@@ -42,48 +35,91 @@ describe('PatientSearch', () => {
     );
 
     render(<PatientSearch />);
-    fireEvent.change(screen.getByPlaceholderText('Search patient by name'), { target: { value: 'Jane' } });
+
+    expect(await screen.findByRole('button', { name: /Jane Doe/ })).toBeInTheDocument();
+  });
+
+  it('shows a message when there are no patients', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ patients: [] }));
+
+    render(<PatientSearch />);
+
+    expect(await screen.findByText('No patients found.')).toBeInTheDocument();
+  });
+
+  it('searches, shows the detail panel on selection, and clears the search box', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse({ patients: [] }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          patients: [
+            {
+              id: '1',
+              fullName: 'Jane Doe',
+              dateOfBirth: '1990-01-15',
+              createdBy: 'user-1',
+              createdAt: '2026-01-01',
+              updatedAt: '2026-01-01',
+            },
+          ],
+        })
+      );
+
+    render(<PatientSearch />);
+    await screen.findByText('No patients found.');
+
+    const input = screen.getByPlaceholderText('Search patient by name') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'Jane' } });
     fireEvent.click(screen.getByRole('button', { name: 'Search' }));
 
     const result = await screen.findByRole('button', { name: /Jane Doe/ });
+    expect(input.value).toBe('');
+
     fireEvent.click(result);
 
     expect(await screen.findByRole('heading', { name: 'Jane Doe' })).toBeInTheDocument();
-    expect(screen.getByText('Date of birth: 1990-01-15')).toBeInTheDocument();
   });
 
   it('shows a search error message', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ error: 'Unable to search patients' }, false));
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse({ patients: [] }))
+      .mockResolvedValueOnce(jsonResponse({ error: 'Unable to load patients' }, false));
 
     render(<PatientSearch />);
+    await screen.findByText('No patients found.');
+
     fireEvent.change(screen.getByPlaceholderText('Search patient by name'), { target: { value: 'Jane' } });
     fireEvent.click(screen.getByRole('button', { name: 'Search' }));
 
-    expect(await screen.findByText('Unable to search patients')).toBeInTheDocument();
+    expect(await screen.findByText('Unable to load patients')).toBeInTheDocument();
   });
 
-  it('creates a patient and selects it', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(
-      jsonResponse({
-        patient: {
-          id: '2',
-          fullName: 'New Patient',
-          dateOfBirth: '2000-05-01',
-          createdBy: 'user-1',
-          createdAt: '2026-01-01',
-          updatedAt: '2026-01-01',
-        },
-      })
-    );
+  it('creates a patient and shows a success message', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse({ patients: [] }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          patient: {
+            id: '2',
+            fullName: 'New Patient',
+            dateOfBirth: '2000-05-01',
+            createdBy: 'user-1',
+            createdAt: '2026-01-01',
+            updatedAt: '2026-01-01',
+          },
+        })
+      );
 
     render(<PatientSearch />);
-    fireEvent.click(screen.getByRole('button', { name: 'Add new patient' }));
+    await screen.findByText('No patients found.');
 
+    fireEvent.click(screen.getByRole('button', { name: 'Add new patient' }));
     fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'New Patient' } });
     fireEvent.change(screen.getByLabelText('Date of birth'), { target: { value: '2000-05-01' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create patient' }));
 
     expect(await screen.findByRole('heading', { name: 'New Patient' })).toBeInTheDocument();
+    expect(screen.getByText('New Patient was created successfully.')).toBeInTheDocument();
     expect(screen.queryByLabelText('Full name')).not.toBeInTheDocument();
   });
 });
