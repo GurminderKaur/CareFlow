@@ -15,3 +15,11 @@ export interface NewPatientInput {
   phone?: string;
   email?: string;
 }
+
+export interface PatientListResponse {
+  patients: Patient[];
+}
+
+export interface PatientResponse {
+  patient: Patient;
+}

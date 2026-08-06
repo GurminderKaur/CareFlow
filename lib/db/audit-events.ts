@@ -50,8 +50,12 @@ export async function recordAuditEvent(input: NewAuditEventInput): Promise<Audit
     .select()
     .single();
 
-  if (error || !data) {
-    throw new Error(error?.message ?? 'Unable to record audit event');
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data) {
+    throw new Error('Unable to record audit event');
   }
 
   return toAuditEvent(data);
@@ -69,9 +73,9 @@ export async function listAuditEventsForEntity(
     .eq('entity_id', entityId)
     .order('created_at', { ascending: false });
 
-  if (error || !data) {
-    return [];
+  if (error) {
+    throw new Error(error.message);
   }
 
-  return data.map(toAuditEvent);
+  return (data ?? []).map(toAuditEvent);
 }

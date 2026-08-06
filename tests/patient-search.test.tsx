@@ -2,10 +2,19 @@
 import '@testing-library/jest-dom/vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { SWRConfig } from 'swr';
 import { PatientSearch } from '../features/patients/PatientSearch';
 
 function jsonResponse(body: unknown, ok = true) {
   return { ok, json: async () => body } as Response;
+}
+
+function renderPatientSearch() {
+  return render(
+    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+      <PatientSearch />
+    </SWRConfig>
+  );
 }
 
 describe('PatientSearch', () => {
@@ -34,7 +43,7 @@ describe('PatientSearch', () => {
       })
     );
 
-    render(<PatientSearch />);
+    renderPatientSearch();
 
     expect(await screen.findByRole('button', { name: /Jane Doe/ })).toBeInTheDocument();
   });
@@ -42,7 +51,7 @@ describe('PatientSearch', () => {
   it('shows a message when there are no patients', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ patients: [] }));
 
-    render(<PatientSearch />);
+    renderPatientSearch();
 
     expect(await screen.findByText('No patients found.')).toBeInTheDocument();
   });
@@ -65,7 +74,7 @@ describe('PatientSearch', () => {
         })
       );
 
-    render(<PatientSearch />);
+    renderPatientSearch();
     await screen.findByText('No patients found.');
 
     const input = screen.getByPlaceholderText('Search patient by name') as HTMLInputElement;
@@ -85,7 +94,7 @@ describe('PatientSearch', () => {
       .mockResolvedValueOnce(jsonResponse({ patients: [] }))
       .mockResolvedValueOnce(jsonResponse({ error: 'Unable to load patients' }, false));
 
-    render(<PatientSearch />);
+    renderPatientSearch();
     await screen.findByText('No patients found.');
 
     fireEvent.change(screen.getByPlaceholderText('Search patient by name'), { target: { value: 'Jane' } });
@@ -108,9 +117,23 @@ describe('PatientSearch', () => {
             updatedAt: '2026-01-01',
           },
         })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          patients: [
+            {
+              id: '2',
+              fullName: 'New Patient',
+              dateOfBirth: '2000-05-01',
+              createdBy: 'user-1',
+              createdAt: '2026-01-01',
+              updatedAt: '2026-01-01',
+            },
+          ],
+        })
       );
 
-    render(<PatientSearch />);
+    renderPatientSearch();
     await screen.findByText('No patients found.');
 
     fireEvent.click(screen.getByRole('button', { name: 'Add new patient' }));

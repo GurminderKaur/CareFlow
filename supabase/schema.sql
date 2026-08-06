@@ -2,7 +2,7 @@
 
 create extension if not exists pgcrypto;
 
-create table if not exists patients (
+create table Hold on milestone 4if not exists patients (
   id uuid primary key default gen_random_uuid(),
   full_name text not null,
   date_of_birth date not null,
