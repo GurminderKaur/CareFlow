@@ -1,15 +1,34 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
-import type { Patient } from '@/types/patient';
+import { useState, type FormEvent } from 'react';
+import useSWR from 'swr';
+import type { Patient, PatientListResponse, PatientResponse } from '@/types/patient';
+import type { ApiErrorResponse } from '@/types/api';
+
+async function fetchPatients(url: string): Promise<Patient[]> {
+  const response = await fetch(url);
+  const body = (await response.json()) as PatientListResponse | ApiErrorResponse;
+
+  if (!response.ok) {
+    throw new Error((body as ApiErrorResponse).error);
+  }
+
+  return (body as PatientListResponse).patients;
+}
 
 export function PatientSearch() {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<Patient[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [searchError, setSearchError] = useState('');
-  const [hasSearched, setHasSearched] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+
+  const {
+    data: results = [],
+    error: searchError,
+    isLoading: searching,
+    mutate,
+  } = useSWR(`/api/patients?query=${encodeURIComponent(searchTerm)}`, fetchPatients, {
+    shouldRetryOnError: false,
+  });
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [fullName, setFullName] = useState('');
@@ -20,35 +39,10 @@ export function PatientSearch() {
   const [createError, setCreateError] = useState('');
   const [createSuccess, setCreateSuccess] = useState('');
 
-  async function runSearch(term: string) {
-    setSearchError('');
-    setSearching(true);
-
-    try {
-      const response = await fetch(`/api/patients?query=${encodeURIComponent(term)}`);
-      const body = await response.json();
-
-      if (!response.ok) {
-        throw new Error(typeof body.error === 'string' ? body.error : 'Unable to load patients');
-      }
-
-      setResults(body.patients);
-    } catch (err) {
-      setSearchError(err instanceof Error ? err.message : 'Unable to load patients');
-    } finally {
-      setSearching(false);
-      setHasSearched(true);
-    }
-  }
-
-  useEffect(() => {
-    runSearch('');
-  }, []);
-
-  async function handleSearch(event: FormEvent<HTMLFormElement>) {
+  function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSelectedPatient(null);
-    await runSearch(query.trim());
+    setSearchTerm(query.trim());
     setQuery('');
   }
 
@@ -75,17 +69,17 @@ export function PatientSearch() {
           email: email || undefined,
         }),
       });
-      const body = await response.json();
+      const body = (await response.json()) as PatientResponse | ApiErrorResponse;
 
       if (!response.ok) {
-        const message = typeof body.error === 'string' ? body.error : 'Unable to create patient';
-        throw new Error(message);
+        throw new Error((body as ApiErrorResponse).error);
       }
 
-      setSelectedPatient(body.patient);
-      setResults((current) => [body.patient, ...current]);
+      const { patient } = body as PatientResponse;
+      setSelectedPatient(patient);
+      await mutate();
       setShowCreateForm(false);
-      setCreateSuccess(`${body.patient.fullName} was created successfully.`);
+      setCreateSuccess(`${patient.fullName} was created successfully.`);
       setFullName('');
       setDateOfBirth('');
       setPhone('');
@@ -117,11 +111,11 @@ export function PatientSearch() {
         </button>
       </form>
 
-      {searchError ? <div className="mt-3 text-sm text-red-600">{searchError}</div> : null}
+      {searchError ? <div className="mt-3 text-sm text-red-600">{searchError.message}</div> : null}
 
       {!searchError && searching ? <div className="mt-4 text-sm text-slate-500">Loading patients…</div> : null}
 
-      {!searchError && !searching && hasSearched && results.length === 0 ? (
+      {!searchError && !searching && results.length === 0 ? (
         <div className="mt-4 text-sm text-slate-500">No patients found.</div>
       ) : null}
 

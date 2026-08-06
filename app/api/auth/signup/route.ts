@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server';
 import { createServerComponentClient } from '@/lib/auth/supabase';
 import { validateLoginInput } from '@/lib/auth/session';
+import { errorResponse, validationErrorResponse } from '@/lib/api/errors';
+import type { SignupResponse } from '@/types/auth';
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const parsed = validateLoginInput(body);
 
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 });
+    return validationErrorResponse(parsed.error);
   }
 
   const supabase = await createServerComponentClient();
@@ -22,8 +24,11 @@ export async function POST(request: Request) {
   });
 
   if (error || !data.user) {
-    return NextResponse.json({ error: error?.message ?? 'Unable to create account' }, { status: 400 });
+    return errorResponse(error?.message ?? 'Unable to create account', 400);
   }
 
-  return NextResponse.json({ ok: true, user: data.user });
+  return NextResponse.json<SignupResponse>({
+    ok: true,
+    user: { id: data.user.id, email: data.user.email ?? parsed.data.email },
+  });
 }

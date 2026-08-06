@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import type { LoginResponse } from '@/types/auth';
+import type { ApiErrorResponse } from '@/types/api';
 
 export default function LoginContent() {
   const router = useRouter();
@@ -24,11 +26,10 @@ export default function LoginContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      const body = await response.json();
+      const body = (await response.json()) as LoginResponse | ApiErrorResponse;
 
       if (!response.ok) {
-        const message = typeof body.error === 'string' ? body.error : 'Please check your email and password';
-        throw new Error(message);
+        throw new Error((body as ApiErrorResponse).error);
       }
 
       router.replace(redirectTo);

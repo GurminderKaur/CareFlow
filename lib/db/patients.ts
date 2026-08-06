@@ -51,8 +51,12 @@ export async function createPatient(input: NewPatientInput, createdBy: string): 
     .select()
     .single();
 
-  if (error || !data) {
-    throw new Error(error?.message ?? 'Unable to create patient');
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data) {
+    throw new Error('Unable to create patient');
   }
 
   return toPatient(data);
@@ -62,11 +66,11 @@ export async function findPatientById(id: string): Promise<Patient | null> {
   const supabase = await createServerComponentClient();
   const { data, error } = await supabase.from('patients').select().eq('id', id).maybeSingle();
 
-  if (error || !data) {
-    return null;
+  if (error) {
+    throw new Error(error.message);
   }
 
-  return toPatient(data);
+  return data ? toPatient(data) : null;
 }
 
 export async function searchPatientsByName(query: string): Promise<Patient[]> {
@@ -77,9 +81,9 @@ export async function searchPatientsByName(query: string): Promise<Patient[]> {
     .ilike('full_name', `%${query}%`)
     .order('full_name', { ascending: true });
 
-  if (error || !data) {
-    return [];
+  if (error) {
+    throw new Error(error.message);
   }
 
-  return data.map(toPatient);
+  return (data ?? []).map(toPatient);
 }

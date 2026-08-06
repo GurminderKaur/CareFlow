@@ -55,8 +55,12 @@ export async function createVisit(input: NewVisitInput, createdBy: string): Prom
     .select()
     .single();
 
-  if (error || !data) {
-    throw new Error(error?.message ?? 'Unable to create visit');
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data) {
+    throw new Error('Unable to create visit');
   }
 
   return toVisit(data);
@@ -66,11 +70,11 @@ export async function findVisitById(id: string): Promise<VisitRecord | null> {
   const supabase = await createServerComponentClient();
   const { data, error } = await supabase.from('visits').select().eq('id', id).maybeSingle();
 
-  if (error || !data) {
-    return null;
+  if (error) {
+    throw new Error(error.message);
   }
 
-  return toVisit(data);
+  return data ? toVisit(data) : null;
 }
 
 export async function listVisitsByPatient(patientId: string): Promise<VisitRecord[]> {
@@ -81,11 +85,11 @@ export async function listVisitsByPatient(patientId: string): Promise<VisitRecor
     .eq('patient_id', patientId)
     .order('appointment_date', { ascending: false });
 
-  if (error || !data) {
-    return [];
+  if (error) {
+    throw new Error(error.message);
   }
 
-  return data.map(toVisit);
+  return (data ?? []).map(toVisit);
 }
 
 export async function saveVisitSummary(
@@ -101,8 +105,12 @@ export async function saveVisitSummary(
     .select()
     .single();
 
-  if (error || !data) {
-    throw new Error(error?.message ?? 'Unable to save visit summary');
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data) {
+    throw new Error('Unable to save visit summary');
   }
 
   return toVisit(data);
