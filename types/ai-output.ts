@@ -1,17 +1,25 @@
 export interface AiOutput {
   id: string;
   visitId: string;
-  summary: string;
-  followUpInstructions: string;
+  summary?: string;
+  followUpInstructions?: string;
+  errorMessage?: string;
   modelName: string;
   status: 'completed' | 'failed';
   createdAt: string;
 }
 
-export interface NewAiOutputInput {
-  visitId: string;
-  summary: string;
-  followUpInstructions: string;
-  modelName: string;
-  status: AiOutput['status'];
-}
+export type NewAiOutputInput =
+  | {
+      visitId: string;
+      modelName: string;
+      status: 'completed';
+      summary: string;
+      followUpInstructions: string;
+    }
+  | {
+      visitId: string;
+      modelName: string;
+      status: 'failed';
+      errorMessage: string;
+    };

@@ -16,7 +16,11 @@ async function fetchPatients(url: string): Promise<Patient[]> {
   return (body as PatientListResponse).patients;
 }
 
-export function PatientSearch() {
+interface PatientSearchProps {
+  onSelectPatient?: (patient: Patient | null) => void;
+}
+
+export function PatientSearch({ onSelectPatient }: PatientSearchProps) {
   const [query, setQuery] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
@@ -39,9 +43,14 @@ export function PatientSearch() {
   const [createError, setCreateError] = useState('');
   const [createSuccess, setCreateSuccess] = useState('');
 
+  function selectPatient(patient: Patient | null) {
+    setSelectedPatient(patient);
+    onSelectPatient?.(patient);
+  }
+
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSelectedPatient(null);
+    selectPatient(null);
     setSearchTerm(query.trim());
     setQuery('');
   }
@@ -76,7 +85,7 @@ export function PatientSearch() {
       }
 
       const { patient } = body as PatientResponse;
-      setSelectedPatient(patient);
+      selectPatient(patient);
       await mutate();
       setShowCreateForm(false);
       setCreateSuccess(`${patient.fullName} was created successfully.`);
@@ -125,7 +134,7 @@ export function PatientSearch() {
             <li key={patient.id}>
               <button
                 type="button"
-                onClick={() => setSelectedPatient(patient)}
+                onClick={() => selectPatient(patient)}
                 className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm hover:bg-slate-50"
               >
                 <span className="font-medium text-slate-900">{patient.fullName}</span>
