@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { validateNewPatientInput } from '../lib/db/patients';
-import { validateNewVisitInput } from '../lib/db/visits';
+import { validateNewVisitInput, validateSaveVisitSummaryInput } from '../lib/db/visits';
 import { validateNewAuditEventInput } from '../lib/db/audit-events';
+import { validateNewAiOutputInput } from '../lib/db/ai-outputs';
 
 describe('patient input validation', () => {
   it('accepts a valid patient', () => {
@@ -71,6 +72,32 @@ describe('visit input validation', () => {
   });
 });
 
+describe('save visit summary input validation', () => {
+  it('accepts a valid summary and follow-up', () => {
+    const result = validateSaveVisitSummaryInput({
+      summary: 'Patient is recovering well.',
+      followUpInstructions: 'Return in two weeks.',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects an empty summary', () => {
+    const result = validateSaveVisitSummaryInput({
+      summary: '',
+      followUpInstructions: 'Return in two weeks.',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects empty follow-up instructions', () => {
+    const result = validateSaveVisitSummaryInput({
+      summary: 'Patient is recovering well.',
+      followUpInstructions: '',
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
 describe('audit event input validation', () => {
   it('accepts a valid audit event', () => {
     const result = validateNewAuditEventInput({
@@ -98,6 +125,59 @@ describe('audit event input validation', () => {
       entityId: 'patient-123',
       action: '',
       performedBy: 'user-123',
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('ai output input validation', () => {
+  it('accepts a valid completed output', () => {
+    const result = validateNewAiOutputInput({
+      visitId: 'visit-123',
+      modelName: 'claude-sonnet-5',
+      status: 'completed',
+      summary: 'Visit summary.',
+      followUpInstructions: 'Follow up in two weeks.',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts a valid failed output', () => {
+    const result = validateNewAiOutputInput({
+      visitId: 'visit-123',
+      modelName: 'claude-sonnet-5',
+      status: 'failed',
+      errorMessage: 'The AI provider timed out.',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a completed output missing summary', () => {
+    const result = validateNewAiOutputInput({
+      visitId: 'visit-123',
+      modelName: 'claude-sonnet-5',
+      status: 'completed',
+      followUpInstructions: 'Follow up in two weeks.',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a failed output missing an error message', () => {
+    const result = validateNewAiOutputInput({
+      visitId: 'visit-123',
+      modelName: 'claude-sonnet-5',
+      status: 'failed',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects an unknown status', () => {
+    const result = validateNewAiOutputInput({
+      visitId: 'visit-123',
+      modelName: 'claude-sonnet-5',
+      status: 'pending',
+      summary: 'Visit summary.',
+      followUpInstructions: 'Follow up in two weeks.',
     });
     expect(result.success).toBe(false);
   });

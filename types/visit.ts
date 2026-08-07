@@ -22,3 +22,7 @@ export interface NewVisitInput {
   visitType: string;
   notes: string;
 }
+
+export interface VisitResponse {
+  visit: VisitRecord;
+}
