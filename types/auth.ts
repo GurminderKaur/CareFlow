@@ -9,10 +9,7 @@ export interface MeResponse {
   user: SessionUser;
 }
 
-export interface SignupResponse {
+export interface InviteResponse {
   ok: true;
-  user: {
-    id: string;
-    email: string;
-  };
+  email: string;
 }

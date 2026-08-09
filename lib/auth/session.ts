@@ -16,6 +16,14 @@ export function validateLoginInput(input: unknown) {
   return loginSchema.safeParse(input);
 }
 
+const inviteSchema = z.object({
+  email: z.string().trim().email('Please provide a valid email address'),
+});
+
+export function validateInviteInput(input: unknown) {
+  return inviteSchema.safeParse(input);
+}
+
 export function hasRequiredRole(user: SessionUser | null, requiredRole: SessionUser['role']) {
   if (!user) {
     return false;
@@ -36,7 +44,11 @@ export async function validateStaffCredentials(email: string, password: string):
     return null;
   }
 
-  const role = getRoleFromMetadata(data.user.user_metadata?.role) ?? 'staff';
+  const role = getRoleFromMetadata(data.user.app_metadata?.role);
+
+  if (!role) {
+    return null;
+  }
 
   return {
     id: data.user.id,
@@ -53,7 +65,11 @@ export async function getCurrentSessionUser(): Promise<SessionUser | null> {
     return null;
   }
 
-  const role = getRoleFromMetadata(data.user.user_metadata?.role) ?? 'staff';
+  const role = getRoleFromMetadata(data.user.app_metadata?.role);
+
+  if (!role) {
+    return null;
+  }
 
   return {
     id: data.user.id,

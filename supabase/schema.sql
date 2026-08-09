@@ -93,7 +93,18 @@ create trigger subscriptions_set_updated_at
   before update on subscriptions
   for each row execute function set_updated_at();
 
--- Row-Level Security: any authenticated user has full access (single-clinic MVP).
+-- Row-Level Security: any staff/admin account has full access to clinical data
+-- (single-clinic MVP, no per-user ownership on patients/visits). Role comes from
+-- app_metadata, which only the service-role key can set — never user-editable.
+-- Billing data is scoped per user; no product feature needs cross-user visibility.
+create or replace function is_staff()
+returns boolean as $$
+  select coalesce(
+    (auth.jwt() -> 'app_metadata' ->> 'role') in ('staff', 'admin'),
+    false
+  );
+$$ language sql stable;
+
 alter table patients enable row level security;
 alter table visits enable row level security;
 alter table ai_outputs enable row level security;
@@ -101,24 +112,29 @@ alter table audit_events enable row level security;
 alter table subscriptions enable row level security;
 
 drop policy if exists "authenticated full access" on patients;
-create policy "authenticated full access" on patients
-  for all to authenticated using (true) with check (true);
+drop policy if exists "staff full access" on patients;
+create policy "staff full access" on patients
+  for all to authenticated using (is_staff()) with check (is_staff());
 
 drop policy if exists "authenticated full access" on visits;
-create policy "authenticated full access" on visits
-  for all to authenticated using (true) with check (true);
+drop policy if exists "staff full access" on visits;
+create policy "staff full access" on visits
+  for all to authenticated using (is_staff()) with check (is_staff());
 
 drop policy if exists "authenticated full access" on ai_outputs;
-create policy "authenticated full access" on ai_outputs
-  for all to authenticated using (true) with check (true);
+drop policy if exists "staff full access" on ai_outputs;
+create policy "staff full access" on ai_outputs
+  for all to authenticated using (is_staff()) with check (is_staff());
 
 drop policy if exists "authenticated full access" on audit_events;
-create policy "authenticated full access" on audit_events
-  for all to authenticated using (true) with check (true);
+drop policy if exists "staff full access" on audit_events;
+create policy "staff full access" on audit_events
+  for all to authenticated using (is_staff()) with check (is_staff());
 
 drop policy if exists "authenticated full access" on subscriptions;
-create policy "authenticated full access" on subscriptions
-  for all to authenticated using (true) with check (true);
+drop policy if exists "own subscription only" on subscriptions;
+create policy "own subscription only" on subscriptions
+  for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- Milestone 4 migration: allow ai_outputs to record failed generation attempts.
 -- Safe to re-run; only needed if ai_outputs already exists from Milestone 2.
