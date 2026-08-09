@@ -209,7 +209,11 @@ export function VisitComposer({ patient }: VisitComposerProps) {
 
       {generateError ? <div className="mt-3 text-sm text-red-600">{generateError}</div> : null}
 
-      <form onSubmit={handleSave} className="mt-4 flex max-w-lg flex-col gap-3">
+      <p className="mt-4 text-xs text-slate-500">
+        AI-generated text may be inaccurate or incomplete. Review it against the visit notes above before saving.
+      </p>
+
+      <form onSubmit={handleSave} className="mt-2 flex max-w-lg flex-col gap-3">
         <label className="flex flex-col gap-1">
           <span className="text-sm font-medium text-slate-700">Summary</span>
           <textarea

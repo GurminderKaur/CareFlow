@@ -73,13 +73,16 @@ export async function findPatientById(id: string): Promise<Patient | null> {
   return data ? toPatient(data) : null;
 }
 
+const MAX_SEARCH_RESULTS = 100;
+
 export async function searchPatientsByName(query: string): Promise<Patient[]> {
   const supabase = await createServerComponentClient();
   const { data, error } = await supabase
     .from('patients')
     .select()
     .ilike('full_name', `%${query}%`)
-    .order('full_name', { ascending: true });
+    .order('full_name', { ascending: true })
+    .limit(MAX_SEARCH_RESULTS);
 
   if (error) {
     throw new Error(error.message);

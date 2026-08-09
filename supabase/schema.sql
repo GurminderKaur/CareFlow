@@ -62,12 +62,22 @@ create table if not exists subscriptions (
   updated_at timestamptz not null default now()
 );
 
+-- Anti-brute-force tracking. Written and read only by the service-role client
+-- (no RLS policies below means no authenticated/anon session has any access at
+-- all), since login attempts happen before a session exists.
+create table if not exists login_attempts (
+  id uuid primary key default gen_random_uuid(),
+  email text not null,
+  created_at timestamptz not null default now()
+);
+
 -- Foreign-key lookup indexes (Postgres does not index FK columns automatically).
 create index if not exists visits_patient_id_idx on visits (patient_id);
 create index if not exists ai_outputs_visit_id_idx on ai_outputs (visit_id);
 create index if not exists audit_events_entity_id_idx on audit_events (entity_id);
 create index if not exists subscriptions_user_id_idx on subscriptions (user_id);
 create index if not exists subscriptions_stripe_subscription_id_idx on subscriptions (stripe_subscription_id);
+create index if not exists login_attempts_email_created_at_idx on login_attempts (email, created_at);
 
 -- Keep updated_at current on writes.
 create or replace function set_updated_at()
@@ -110,6 +120,7 @@ alter table visits enable row level security;
 alter table ai_outputs enable row level security;
 alter table audit_events enable row level security;
 alter table subscriptions enable row level security;
+alter table login_attempts enable row level security;
 
 drop policy if exists "authenticated full access" on patients;
 drop policy if exists "staff full access" on patients;
