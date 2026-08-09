@@ -71,3 +71,17 @@ export async function recordAiOutput(input: NewAiOutputInput): Promise<AiOutput>
 
   return toAiOutput(data);
 }
+
+export async function countAiOutputsForVisit(visitId: string): Promise<number> {
+  const supabase = await createServerComponentClient();
+  const { count, error } = await supabase
+    .from('ai_outputs')
+    .select('id', { count: 'exact', head: true })
+    .eq('visit_id', visitId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return count ?? 0;
+}

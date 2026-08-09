@@ -2,9 +2,11 @@ import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 import { NextResponse } from 'next/server';
 import { summarizeVisit, AI_MODEL } from '@/server/ai/summarize-visit';
-import { recordAiOutput } from '@/lib/db/ai-outputs';
+import { countAiOutputsForVisit, recordAiOutput } from '@/lib/db/ai-outputs';
 import { errorResponse, unexpectedErrorResponse, validationErrorResponse } from '@/lib/api/errors';
 import type { VisitSummary } from '@/types/visit';
+
+const MAX_GENERATIONS_PER_VISIT = 5;
 
 const generateRequestSchema = z.object({
   visitId: z.string().trim().min(1, 'A visit is required'),
@@ -20,6 +22,19 @@ export async function POST(request: Request) {
   }
 
   const { visitId, notes } = parsed.data;
+
+  let attempts: number;
+
+  try {
+    attempts = await countAiOutputsForVisit(visitId);
+  } catch (error) {
+    return unexpectedErrorResponse(error, 'Unable to check the generation limit for this visit');
+  }
+
+  if (attempts >= MAX_GENERATIONS_PER_VISIT) {
+    return errorResponse('This visit has reached its AI generation limit. Edit the summary manually instead.', 429);
+  }
+
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
   let result: VisitSummary;
