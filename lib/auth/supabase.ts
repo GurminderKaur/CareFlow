@@ -10,7 +10,7 @@ export const createClient = () => createBrowserClient(supabaseUrl, supabaseAnonK
 // Bypasses RLS entirely. Only for the Stripe webhook route, which has no user
 // session to authenticate as — do not use this anywhere a user-scoped client works.
 export const createServiceRoleClient = () => {
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_SECRETS_KEY ?? '';
 
   return createSupabaseJsClient(supabaseUrl, serviceRoleKey, {
     auth: {
