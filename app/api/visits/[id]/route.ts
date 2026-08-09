@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentSessionUser } from '@/lib/auth/session';
 import { saveVisitSummary, validateSaveVisitSummaryInput } from '@/lib/db/visits';
+import { recordAuditEventBestEffort } from '@/lib/db/audit-events';
 import { errorResponse, unexpectedErrorResponse, validationErrorResponse } from '@/lib/api/errors';
 import type { VisitResponse } from '@/types/visit';
 
@@ -21,6 +22,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   try {
     const visit = await saveVisitSummary(id, parsed.data.summary, parsed.data.followUpInstructions);
+    await recordAuditEventBestEffort({
+      entityType: 'visit',
+      entityId: visit.id,
+      action: 'save',
+      performedBy: user.id,
+    });
     return NextResponse.json<VisitResponse>({ visit });
   } catch (error) {
     return unexpectedErrorResponse(error, 'Unable to save visit summary');

@@ -1,33 +1,30 @@
 # Restart State
 
 ## Current status
-- Milestone 1 (auth boundary) is complete and deployed.
-- Milestone 2 (database schema and typed persistence layer) is complete.
-- Milestone 3 (patient search and create) is complete.
-- Milestone 4 (visit capture and AI-generated summaries) is complete: `app/api/visits/route.ts`, `app/api/visits/[id]/route.ts`, `app/api/ai/route.ts`, a real Anthropic integration in `server/ai/summarize-visit.ts`, `VisitComposer`, a per-visit generation rate limit, and tests — all passing.
+- Milestones 1-5 are complete: auth, database schema, patient workflow, visit capture with AI-generated summaries, audit logging, and the Stripe subscription entry point. This closes out the MVP scope in `docs/product-spec.md`.
 - CI is set up (`.github/workflows/ci.yml`) running lint/test/build on every push and PR.
-- The next step is Milestone 5 — audit logging and the Stripe subscription entry point.
+- Two external integrations are built with real SDK calls but not yet manually verified end-to-end, because credentials aren't configured yet: Anthropic (`ANTHROPIC_API_KEY`) and Stripe (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID`).
 
 ## Files to review first
-- [app/api/visits/route.ts](app/api/visits/route.ts)
-- [app/api/visits/[id]/route.ts](app/api/visits/[id]/route.ts)
-- [app/api/ai/route.ts](app/api/ai/route.ts)
-- [server/ai/summarize-visit.ts](server/ai/summarize-visit.ts)
-- [features/visits/VisitComposer.tsx](features/visits/VisitComposer.tsx)
-- [app/dashboard/page.tsx](app/dashboard/page.tsx)
-- [lib/db/ai-outputs.ts](lib/db/ai-outputs.ts)
-- [tests/summarize-visit.test.ts](tests/summarize-visit.test.ts)
-- [tests/visit-composer.test.tsx](tests/visit-composer.test.tsx)
+- [lib/db/audit-events.ts](lib/db/audit-events.ts) — `recordAuditEventBestEffort`, now called from patient/visit routes
+- [lib/db/subscriptions.ts](lib/db/subscriptions.ts)
+- [lib/auth/supabase.ts](lib/auth/supabase.ts) — `createServiceRoleClient`
+- [app/api/stripe/checkout/route.ts](app/api/stripe/checkout/route.ts)
+- [app/api/stripe/webhook/route.ts](app/api/stripe/webhook/route.ts)
+- [server/billing/handle-stripe-event.ts](server/billing/handle-stripe-event.ts)
+- [features/billing/BillingCard.tsx](features/billing/BillingCard.tsx)
+- [tests/handle-stripe-event.test.ts](tests/handle-stripe-event.test.ts)
 - [supabase/schema.sql](supabase/schema.sql)
 
 ## Immediate next actions
-1. Begin Milestone 5: audit logging on create/update/save actions, using the already-built `lib/db/audit-events.ts` (built in Milestone 2, not yet called from anywhere).
-2. Add the Stripe subscription entry point (`features/billing/BillingCard.tsx` is still the Milestone 1 stub, not wired to anything).
-3. Add `ANTHROPIC_API_KEY` to `.env.local` and Vercel's environment variables to manually verify the AI generation path end-to-end — it hasn't been tested against the real Anthropic API yet.
+1. Add `ANTHROPIC_API_KEY` to `.env.local` and Vercel, then manually verify visit summary generation end-to-end.
+2. Create a product/price in the Stripe dashboard, add `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID` to `.env.local` and Vercel, register the webhook endpoint in Stripe pointing at `/api/stripe/webhook`, then manually verify checkout → webhook → `BillingCard` reflecting active status.
+3. All five milestones from the original plan are now done — next would be deciding what's next with the user (hardening, new scope, or wrapping up for review).
 
 ## Notes
 - No `public.users` table — FKs reference `auth.users(id)` directly; role stays in Supabase Auth `user_metadata`.
-- RLS is "any authenticated user, full access" on every table (single-clinic MVP).
-- API routes call `lib/db/*` directly; no service layer unless real business logic requires one. The one exception to "no DI" is `server/ai/summarize-visit.ts`, which takes its Anthropic client as a parameter so it can be tested without a real API call.
+- RLS is "any authenticated user, full access" on every table (single-clinic MVP) — except the Stripe webhook, which uses `createServiceRoleClient()` (bypasses RLS) since it has no user session. That's the only place in the codebase this privileged client is used.
+- API routes call `lib/db/*` directly; no service layer unless real business logic requires one. Dependency injection is used in exactly two places, both because a test needed to mock an external call without hitting the real API: `server/ai/summarize-visit.ts` (Anthropic client) and `server/billing/handle-stripe-event.ts` (Supabase client, to test against fake Stripe events).
 - AI generation is capped at 5 attempts per visit (checked against `ai_outputs`, not in-memory) to bound cost on Vercel's stateless functions.
+- Audit logging (patient/visit create and save) is best-effort — a failed audit write is logged server-side but never blocks the user's actual action.
 - `vitest.config.ts` uses `pool: 'threads'`. jsdom component test files have intermittently hit a hardcoded ~60-90s Vitest worker-startup timeout on the primary dev machine (likely antivirus/cloud-sync interference with `node_modules` access) — not a code defect, doesn't affect `next build`, and is expected to behave normally in CI.

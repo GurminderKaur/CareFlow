@@ -61,6 +61,14 @@ export async function recordAuditEvent(input: NewAuditEventInput): Promise<Audit
   return toAuditEvent(data);
 }
 
+export async function recordAuditEventBestEffort(input: NewAuditEventInput): Promise<void> {
+  try {
+    await recordAuditEvent(input);
+  } catch (error) {
+    console.error('Failed to record audit event', error);
+  }
+}
+
 export async function listAuditEventsForEntity(
   entityType: AuditEvent['entityType'],
   entityId: string

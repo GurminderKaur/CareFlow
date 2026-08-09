@@ -53,7 +53,7 @@ create table if not exists audit_events (
 
 create table if not exists subscriptions (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id),
+  user_id uuid not null references auth.users(id) unique,
   stripe_customer_id text,
   stripe_subscription_id text,
   status text not null default 'inactive',
@@ -67,6 +67,7 @@ create index if not exists visits_patient_id_idx on visits (patient_id);
 create index if not exists ai_outputs_visit_id_idx on ai_outputs (visit_id);
 create index if not exists audit_events_entity_id_idx on audit_events (entity_id);
 create index if not exists subscriptions_user_id_idx on subscriptions (user_id);
+create index if not exists subscriptions_stripe_subscription_id_idx on subscriptions (stripe_subscription_id);
 
 -- Keep updated_at current on writes.
 create or replace function set_updated_at()
@@ -130,3 +131,8 @@ alter table ai_outputs add constraint ai_outputs_status_result_check check (
   (status = 'completed' and summary is not null and follow_up_instructions is not null)
   or (status = 'failed' and error_message is not null)
 );
+
+-- Milestone 5 migration: enforce one subscription per user (needed for upsert-on-webhook).
+-- Safe to re-run; only needed if subscriptions already exists from Milestone 2.
+alter table subscriptions drop constraint if exists subscriptions_user_id_key;
+alter table subscriptions add constraint subscriptions_user_id_key unique (user_id);
