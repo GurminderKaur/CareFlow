@@ -25,7 +25,7 @@
 
 ## Patient workflow
 - `app/api/patients/route.ts` calls `lib/db/patients.ts` directly — no separate service layer. A service module is only worth adding once patient-related logic involves more than validation plus a single DB call; nothing in Milestone 3 does.
-- `GET /api/patients?query=` requires a non-empty query and returns an empty list otherwise, rather than listing every patient. This is a deliberate MVP choice, not a missing feature.
+- `GET /api/patients?query=` (empty query) returns all patients, capped at `MAX_SEARCH_RESULTS` (100) — reversed from the original "empty query returns nothing" MVP choice after user feedback that staff need to browse, not just search. The cap was added later during the security pass to bound bulk-export risk; this isn't full pagination, just a ceiling.
 - `features/patients/PatientSearch.tsx` holds search results, the selected patient, and the create-patient form as local component state. The detail view is an inline panel, not a routed page, matching the single-dashboard-shell approach. Selected-patient state is not yet lifted to a parent — Milestone 4 will need to do that when visit capture requires knowing which patient is active.
 
 ## Visit and AI workflow
@@ -50,6 +50,11 @@
 - Both `lib/auth/session.ts` (`getCurrentSessionUser`, `validateStaffCredentials`) and `middleware.ts` now treat a missing/invalid role as **unauthenticated**, not as a default `'staff'`. The old fallback (`role ?? 'staff'`) meant an account with no role assigned at all was still let in.
 - RLS was tightened to match: `is_staff()` checks the JWT's `app_metadata.role` for clinical tables, and `subscriptions` moved from blanket access to row ownership (a staff member could previously read/write any other staff member's billing record via a direct Supabase REST call, even though the app's own routes always scoped queries correctly — RLS is the real boundary, not app-layer query scoping).
 - Existing accounts created before this change need a one-time manual fix (role copied from `raw_user_meta_data` to `raw_app_meta_data` in the Supabase SQL editor) — see `docs/restart-state.md`.
+- `unexpectedErrorResponse` (`lib/api/errors.ts`) no longer returns `error.message` to the client — it logs the real error server-side and returns only the generic fallback message. Previously every 500 across the API leaked raw Postgres/Supabase error text. The webhook route and invite route had two more direct leaks outside this helper, fixed the same way.
+- `next.config.ts` sets standard security headers (`X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `Strict-Transport-Security`, `Content-Security-Policy`) on every route. `connect-src` in the CSP is just `'self'` — verified no client component talks to Supabase/Stripe/Anthropic directly (all external calls are server-side), so nothing broader was needed.
+- Login attempts are rate-limited (5 per 15 minutes per email) via a new `login_attempts` table, checked and written through `createServiceRoleClient()` since login happens before any session exists — same reasoning as the webhook. In-memory limiting wasn't an option, same as the AI generation cap (Vercel functions don't share memory).
+- `tests/e2e/` holds Playwright tests, run via `pnpm run test:e2e`, excluded from Vitest's file discovery (`vitest.config.ts`'s `exclude`) since Vitest would otherwise try to run them with the wrong test runner. One test (unauthenticated redirect) and one accessibility scan (`@axe-core/playwright` on the login page) always run with no setup; the full authenticated flow test is skipped unless `PLAYWRIGHT_TEST_EMAIL`/`PLAYWRIGHT_TEST_PASSWORD` are set to a real staff account.
+- `VisitComposer` shows a short warning below the generate button that AI output may be inaccurate and should be checked against the visit notes — the actual mitigation (mandatory human review before save) already existed, this just makes it explicit in the UI.
 
 ## Tooling
 - CI runs on every push/PR via `.github/workflows/ci.yml`: lint, test, build, on Node 22 / pnpm 9.

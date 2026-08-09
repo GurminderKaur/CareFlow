@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig, defaultExclude } from 'vitest/config';
 import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
@@ -10,5 +10,6 @@ export default defineConfig({
   test: {
     environment: 'node',
     pool: 'threads',
+    exclude: [...defaultExclude, 'tests/e2e/**'],
   },
 });

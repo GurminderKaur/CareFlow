@@ -2,7 +2,7 @@ import Stripe from 'stripe';
 import { NextResponse } from 'next/server';
 import { handleStripeEvent } from '@/server/billing/handle-stripe-event';
 import { createServiceRoleClient } from '@/lib/auth/supabase';
-import { errorResponse } from '@/lib/api/errors';
+import { errorResponse, unexpectedErrorResponse } from '@/lib/api/errors';
 
 export async function POST(request: Request) {
   const signature = request.headers.get('stripe-signature');
@@ -20,15 +20,14 @@ export async function POST(request: Request) {
   try {
     event = stripe.webhooks.constructEvent(payload, signature, webhookSecret);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Invalid webhook signature';
-    return errorResponse(message, 400);
+    console.error('Invalid Stripe webhook signature', error);
+    return errorResponse('Invalid webhook signature', 400);
   }
 
   try {
     await handleStripeEvent(event, createServiceRoleClient());
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unable to process webhook event';
-    return errorResponse(message, 500);
+    return unexpectedErrorResponse(error, 'Unable to process webhook event');
   }
 
   return NextResponse.json({ received: true });
