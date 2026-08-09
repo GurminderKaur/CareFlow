@@ -13,6 +13,15 @@ export function validateNewVisitInput(input: unknown) {
   return newVisitSchema.safeParse(input);
 }
 
+const saveVisitSummarySchema = z.object({
+  summary: z.string().trim().min(1, 'Summary is required'),
+  followUpInstructions: z.string().trim().min(1, 'Follow-up instructions are required'),
+});
+
+export function validateSaveVisitSummaryInput(input: unknown) {
+  return saveVisitSummarySchema.safeParse(input);
+}
+
 interface VisitRow {
   id: string;
   patient_id: string;
