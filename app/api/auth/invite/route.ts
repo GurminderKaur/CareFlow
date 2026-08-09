@@ -28,7 +28,8 @@ export async function POST(request: Request) {
     const { data, error } = await serviceClient.auth.admin.inviteUserByEmail(parsed.data.email);
 
     if (error || !data.user) {
-      return errorResponse(error?.message ?? 'Unable to invite user', 502);
+      console.error('Unable to invite user', error);
+      return errorResponse('Unable to invite user', 502);
     }
 
     // app_metadata is not user-editable and must be set separately from the invite call itself.
@@ -37,7 +38,8 @@ export async function POST(request: Request) {
     });
 
     if (updateError) {
-      return errorResponse(updateError.message, 502);
+      console.error('Unable to set role for invited user', updateError);
+      return errorResponse('Unable to set role for invited user', 502);
     }
 
     return NextResponse.json<InviteResponse>({ ok: true, email: parsed.data.email });

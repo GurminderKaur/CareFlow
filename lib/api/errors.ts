@@ -11,6 +11,6 @@ export function validationErrorResponse(error: ZodError) {
 }
 
 export function unexpectedErrorResponse(error: unknown, fallbackMessage: string) {
-  const message = error instanceof Error ? error.message : fallbackMessage;
-  return errorResponse(message, 500);
+  console.error(fallbackMessage, error);
+  return errorResponse(fallbackMessage, 500);
 }
