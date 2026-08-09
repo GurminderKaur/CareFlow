@@ -32,7 +32,8 @@ Then re-run the full `supabase/schema.sql` (idempotent, safe to run in full) to 
 2. Add `ANTHROPIC_API_KEY` to `.env.local` and Vercel, then manually verify visit summary generation end-to-end.
 3. Create a product/price in the Stripe dashboard, add `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID` to `.env.local` and Vercel, register the webhook endpoint in Stripe pointing at `/api/stripe/webhook`, then manually verify checkout → webhook → `BillingCard` reflecting active status.
 4. No UI exists yet for the admin-invite endpoint — it's callable but nothing in the dashboard triggers it. Worth adding if ongoing staff onboarding is needed.
-5. Remaining lower-priority security/hardening items from the audit (login/signup rate limiting, HTTP security headers, generic error messages instead of leaking `error.message`, patient search pagination, AI prompt-injection warning in the UI) — not yet addressed, tracked in conversation, not in a file yet.
+5. To run the full authenticated Playwright test (`tests/e2e/auth.spec.ts`), set `PLAYWRIGHT_TEST_EMAIL`/`PLAYWRIGHT_TEST_PASSWORD` in `.env.local` to an existing staff account. Without them, that one test is skipped automatically; the redirect and login-page accessibility tests always run.
+6. Remaining lower-priority security/hardening items from the audit (login/signup rate limiting, patient search pagination, AI prompt-injection warning in the UI) — not yet addressed, tracked in conversation, not in a file yet.
 
 ## Notes
 - No `public.users` table — FKs reference `auth.users(id)` directly; role lives in Supabase Auth `app_metadata` (server-trusted — see above), not `user_metadata`.
