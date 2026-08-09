@@ -7,7 +7,6 @@ const publicApiPaths = [
   '/api/health',
   '/api/auth/login',
   '/api/auth/logout',
-  '/api/auth/signup',
   '/api/stripe/webhook',
 ];
 
@@ -16,8 +15,8 @@ export async function middleware(request: NextRequest) {
   const response = NextResponse.next();
   const supabase = await createMiddlewareClient(request, response);
   const { data: { user } } = await supabase.auth.getUser();
-  const role = getRoleFromMetadata(user?.user_metadata?.role);
-  const userSession = user ? { id: user.id, email: user.email ?? '', role: role ?? 'staff' } : null;
+  const role = getRoleFromMetadata(user?.app_metadata?.role);
+  const userSession = user && role ? { id: user.id, email: user.email ?? '', role } : null;
 
   if (pathname.startsWith('/_next') || pathname.includes('/favicon')) {
     return response;

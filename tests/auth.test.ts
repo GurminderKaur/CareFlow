@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createMiddlewareClient, createClient } from '../lib/auth/supabase';
-import { validateLoginInput, hasRequiredRole, getRoleFromMetadata } from '../lib/auth/session';
+import { validateLoginInput, validateInviteInput, hasRequiredRole, getRoleFromMetadata } from '../lib/auth/session';
 
 describe('authentication boundary', () => {
   it('exposes a middleware client factory for guarded routes', () => {
@@ -37,5 +37,15 @@ describe('authentication boundary', () => {
 
   it('denies access when there is no user', () => {
     expect(hasRequiredRole(null, 'staff')).toBe(false);
+  });
+
+  it('accepts a valid invite email', () => {
+    const result = validateInviteInput({ email: 'new-staff@careflow.dev' });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects an invalid invite email', () => {
+    const result = validateInviteInput({ email: 'not-an-email' });
+    expect(result.success).toBe(false);
   });
 });
