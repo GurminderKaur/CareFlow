@@ -21,4 +21,4 @@ See [.env.example](.env.example). At minimum, `NEXT_PUBLIC_SUPABASE_URL` and `NE
 - `npm test` — run the Vitest suite
 
 ## Project status
-Milestone 1 (staff authentication and a protected app shell) is implemented. See [docs/milestones/](docs/milestones/) for the milestone plan and [docs/restart-state.md](docs/restart-state.md) for current status.
+Milestones 1–4 are complete: staff authentication, database schema and persistence, patient search/create, and visit capture with AI-generated summaries. See [docs/milestones/](docs/milestones/) for the milestone plan and [docs/restart-state.md](docs/restart-state.md) for current status.
