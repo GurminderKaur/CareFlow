@@ -15,9 +15,8 @@ export async function POST(request: Request) {
     return validationErrorResponse(parsed.error);
   }
 
-  const serviceClient = createServiceRoleClient();
-
   try {
+    const serviceClient = createServiceRoleClient();
     const attempts = await countRecentLoginAttempts(serviceClient, parsed.data.email);
 
     if (attempts >= MAX_LOGIN_ATTEMPTS) {
