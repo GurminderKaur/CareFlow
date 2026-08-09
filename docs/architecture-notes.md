@@ -20,7 +20,7 @@
 - There is no `public.users` table. `created_by` / `performed_by` / `user_id` columns reference `auth.users(id)` directly; role continues to live in Supabase Auth `user_metadata`, read via `lib/auth/session.ts`.
 - RLS is enabled on every table with a single "authenticated full access" policy (`TO authenticated`, never `public`/anon). This matches the single-clinic MVP scope — no per-user row ownership. Staff-vs-admin gating stays an app-layer concern (`middleware.ts`), not RLS.
 - The schema is applied by hand in the Supabase SQL editor; there is no migration tool yet. Future schema changes require a manual `ALTER` reflected back into `supabase/schema.sql`.
-- `lib/db/` holds the typed repository layer (`patients.ts`, `visits.ts`, `audit-events.ts`). Each function uses the same cookie-bound `createServerComponentClient()` from auth, so all reads/writes run as the logged-in user under RLS — no service-role key is used or needed yet. Reads return `null`/`[]` on failure; writes throw.
+- `lib/db/` holds the typed repository layer (`patients.ts`, `visits.ts`, `audit-events.ts`, `ai-outputs.ts`, `subscriptions.ts`). Most functions use the cookie-bound `createServerComponentClient()` internally, so reads/writes run as the logged-in user under RLS. The exception is `subscriptions.ts`'s two write functions (`upsertSubscriptionForUser`, `updateSubscriptionByStripeSubscriptionId`), which take a `SupabaseClient` as a parameter instead — the Stripe webhook that calls them has no user session, so it passes in `lib/auth/supabase.ts`'s `createServiceRoleClient()`, which bypasses RLS and is scoped to that one route. Reads return `null`/`[]` on failure; writes throw.
 - Each repository file also exports a zod input validator (`validateNewPatientInput`, etc.), same pattern as `lib/auth/session.ts`'s `validateLoginInput`.
 
 ## Patient workflow
@@ -35,7 +35,13 @@
 - Generation is capped at 5 attempts per visit (`MAX_GENERATIONS_PER_VISIT` in `app/api/ai/route.ts`), checked via `countAiOutputsForVisit` against the `ai_outputs` table rather than in-memory state — required because Vercel serverless functions don't share memory across invocations.
 - `VisitComposer`'s summary/follow-up fields are always editable, independent of whether generation succeeded. If Claude fails, the error is shown but the feature isn't blocked — staff can save a manually written summary.
 - `selectedPatient` is lifted from `PatientSearch` into `app/dashboard/page.tsx` (via an `onSelectPatient` callback prop) and passed to `VisitComposer`, which is keyed by patient id so switching patients remounts it cleanly. No Context/store — still just two components sharing one value.
-- No audit logging on visit create/save yet — that's Milestone 5, deliberately not pulled forward.
+## Audit logging and billing
+- `lib/db/audit-events.ts` (built in Milestone 2) is now called from patient create, visit create, and visit save, via `recordAuditEventBestEffort` — errors are logged server-side (`console.error`) but never fail the underlying request. A clinic shouldn't be unable to create a patient because an audit write hiccupped; accountability is best-effort, not a hard guarantee.
+- `subscriptions.user_id` is now `unique` (a Milestone 2 schema gap — the table existed but nothing enforced "one subscription per user," which `core-schema.md` had always documented as the intended relationship). Needed for `upsertSubscriptionForUser`'s `onConflict: 'user_id'`.
+- `app/api/stripe/webhook/route.ts` reads the raw request body (`request.text()`, not `request.json()`) because Stripe's signature verification (`stripe.webhooks.constructEvent`) requires the exact unparsed payload bytes. It's listed in `middleware.ts`'s `publicApiPaths` — Stripe calls it with no Supabase session at all, so its security comes entirely from the signature check inside the route, not from auth middleware.
+- `server/billing/handle-stripe-event.ts` takes the parsed Stripe event and a `SupabaseClient` as parameters — same DI reasoning as `summarize-visit.ts`, and what let `tests/handle-stripe-event.test.ts` cover the upsert/update paths against a mocked client instead of real Stripe events.
+- Stripe's `current_period_end` is not a field on the top-level `Subscription` object in the installed SDK version — it moved to each subscription item (`subscription.items.data[0].current_period_end`) in a recent Stripe API version. Confirmed by reading the installed package's type files directly rather than assuming.
+- `features/billing/BillingCard.tsx` fetches `GET /api/subscriptions` via SWR (same pattern as `PatientSearch`) and posts to `/api/stripe/checkout` to start a subscription; the client-side redirect uses `window.location.href`, not `router.push`, since it's leaving the app for Stripe's hosted checkout page.
 
 ## Tooling
 - CI runs on every push/PR via `.github/workflows/ci.yml`: lint, test, build, on Node 22 / pnpm 9.
@@ -46,4 +52,4 @@
 - Milestone 2 (database schema and typed persistence layer) is complete: schema applied, types aligned, repository layer in place, covered by tests.
 - Milestone 3 (patient search and create) is complete: API route, UI, and a component test are in place.
 - Milestone 4 (visit capture and AI-generated summaries) is complete: real Anthropic integration, review/edit/save flow, generation rate limit, and tests are in place.
-- Milestone 5 should add audit logging on create/update/save actions and the Stripe subscription entry point.
+- Milestone 5 (audit logging and Stripe subscription entry point) is complete: audit events wired into patient/visit routes, Stripe checkout and webhook routes, `BillingCard` showing real subscription state, and tests are in place. This closes out the MVP scope defined in `docs/product-spec.md`.

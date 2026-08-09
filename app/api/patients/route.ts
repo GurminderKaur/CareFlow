@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentSessionUser } from '@/lib/auth/session';
 import { createPatient, searchPatientsByName, validateNewPatientInput } from '@/lib/db/patients';
+import { recordAuditEventBestEffort } from '@/lib/db/audit-events';
 import { errorResponse, unexpectedErrorResponse, validationErrorResponse } from '@/lib/api/errors';
 import type { PatientListResponse, PatientResponse } from '@/types/patient';
 
@@ -32,6 +33,12 @@ export async function POST(request: Request) {
 
   try {
     const patient = await createPatient(parsed.data, user.id);
+    await recordAuditEventBestEffort({
+      entityType: 'patient',
+      entityId: patient.id,
+      action: 'create',
+      performedBy: user.id,
+    });
     return NextResponse.json<PatientResponse>({ patient }, { status: 201 });
   } catch (error) {
     return unexpectedErrorResponse(error, 'Unable to create patient');
